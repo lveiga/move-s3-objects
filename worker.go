@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -27,33 +28,53 @@ func goDotEnvVariable(key string) string {
 	return os.Getenv(key)
 }
 
-func listAllKeys(svc *s3.S3, bucketFrom string, keys []*string) {
+func spreadErrors(args ...string) string {
+	message := "errors: /n"
+	for _, v := range args {
+		message = message + " " + v
+	}
 
-	resp, err := svc.ListObjectsV2(&s3.ListObjectsV2Input{
+	return message
+}
+
+func listAllKeys(svc *s3.S3, bucketFrom string, keys []*string) []*string {
+	query := &s3.ListObjectsV2Input{
 		Bucket: aws.String(bucketFrom),
 		Prefix: aws.String("final/faturamentodigital"),
-	})
-
-	if err != nil {
-		exitErrorf("Unable to list items in bucket %q, %v", bucketFrom, err)
 	}
 
-	deadlineDate := time.Date(2019, 9, 30, 23, 59, 59, 651387237, time.UTC)
+	fmt.Println("start listall keys")
 
-	r := funk.Filter(resp.Contents, func(x *s3.Object) bool {
-		return x.LastModified.After(deadlineDate)
-	}).([]*s3.Object)
+	truncatedListing := true
 
-	for _, item := range r {
-		keys = append(keys, item.Key)
-	}
+	for truncatedListing {
+		resp, err := svc.ListObjectsV2(query)
 
-	fmt.Println(len(keys))
+		if err != nil {
+			exitErrorf("Unable to list items in bucket %q, %v", bucketFrom, err)
+		}
 
-	if *resp.IsTruncated {
+		deadlineDate := time.Date(2019, 9, 30, 23, 59, 59, 651387237, time.UTC)
+
 		fmt.Println(len(resp.Contents))
-		listAllKeys(svc, bucketFrom, keys)
+
+		r := funk.Filter(resp.Contents, func(x *s3.Object) bool {
+			return x.LastModified.After(deadlineDate)
+		}).([]*s3.Object)
+
+		fmt.Println(len(r))
+
+		for _, item := range r {
+			keys = append(keys, item.Key)
+		}
+
+		fmt.Println(len(keys))
+
+		query.ContinuationToken = resp.NextContinuationToken
+		truncatedListing = *resp.IsTruncated
 	}
+
+	return keys
 }
 
 func main() {
@@ -74,23 +95,36 @@ func main() {
 
 	svc := s3.New(sess)
 
-	keys := make([]*string, 1000)
+	keys := make([]*string, 0)
 
-	listAllKeys(svc, bucketFrom, keys)
+	finalKeys := listAllKeys(svc, bucketFrom, keys)
 
-	for _, item := range keys {
-		fmt.Println(item)
-		_, err = svc.CopyObject(&s3.CopyObjectInput{Bucket: aws.String(bucketTo), CopySource: aws.String(bucketFrom), Key: item})
+	keysErrors := make([]string, 0)
 
-		if err != nil {
-			exitErrorf("Unable to copy item from bucket %q to bucket %q, %v", bucketFrom, bucketTo, err)
+	for _, item := range finalKeys {
+		keyString := aws.StringValue(item)
+		key := strings.Split(keyString, "/")[1]
+		copySource := bucketFrom + "/" + keyString
+
+		if key == "" || len(key) < 10 {
+			keysErrors = append(keysErrors, keyString)
+			continue
 		}
 
-		err = svc.WaitUntilObjectExists(&s3.HeadObjectInput{Bucket: aws.String(bucketTo), Key: item})
+		_, err = svc.CopyObject(&s3.CopyObjectInput{Bucket: aws.String(bucketTo), CopySource: aws.String(copySource), Key: aws.String(key)})
+
+		if err != nil {
+			exitErrorf("Unable to copy item> %q from bucket %q to bucket %q, %v", keyString, bucketFrom, bucketTo, err)
+		}
+
+		err = svc.WaitUntilObjectExists(&s3.HeadObjectInput{Bucket: aws.String(bucketTo), Key: aws.String(key)})
 
 		if err != nil {
 			exitErrorf("Error occurred while waiting for item %q to be copied to bucket %q, %v", item, bucketTo, err)
 		}
-		fmt.Printf("Item %q successfully copied from bucket %q to bucket %q\n", item, bucketFrom, bucketTo)
+		fmt.Printf("Item %q successfully copied from bucket %q to bucket %q\n", key, bucketFrom, bucketTo)
 	}
+
+	errorsMessage := spreadErrors(keysErrors...)
+	fmt.Println("Sum is ", errorsMessage)
 }
