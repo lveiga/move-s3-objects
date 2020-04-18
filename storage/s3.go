@@ -57,6 +57,16 @@ func (client *Client) genericBucketList(params *S3FileParams, keys []*S3File, fn
 	return keys
 }
 
+//CopyObject ...
+func (client *Client) CopyObject(bucketTo, copySource, key string) (*s3.CopyObjectOutput, error) {
+	return client.s3Client.CopyObject(&s3.CopyObjectInput{Bucket: aws.String(bucketTo), CopySource: aws.String(copySource), Key: aws.String(key)})
+}
+
+// WaitUntilObjectExists ...
+func (client *Client) WaitUntilObjectExists(bucketTo, key string) error {
+	return client.s3Client.WaitUntilObjectExists(&s3.HeadObjectInput{Bucket: aws.String(bucketTo), Key: aws.String(key)})
+}
+
 //ListBucketFiles ...
 func (client *Client) ListBucketFiles(params *S3FileParams, keys []*S3File) []*S3File {
 	if params.Prefix == "" {
@@ -70,7 +80,6 @@ func (client *Client) ListBucketFiles(params *S3FileParams, keys []*S3File) []*S
 		return funk.Filter(contents, func(x *s3.Object) bool {
 			return x.LastModified.After(deadlineDate)
 		}).([]*s3.Object)
-
 	})
 }
 

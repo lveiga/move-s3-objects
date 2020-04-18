@@ -9,7 +9,7 @@
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "./worker.go",
+            "program": "./servers/fromFileServer/worker.go",
             "env": {},
             "args": []
         }

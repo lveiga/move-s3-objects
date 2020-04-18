@@ -1,0 +1,18 @@
+{
+    "complete_path": "example_1.pdf",
+    "file_key": "example_1.pdf",
+    "copy_source": "bucketExample/example_1.pdf",
+    "origin": 2
+},
+{
+    "complete_path": "example_2.pdf",
+    "file_key": "example_2.pdf",
+    "copy_source": "bucketExample/example_2.pdf",
+    "origin": 2
+},
+{
+    "complete_path": "example_3.pdf",
+    "file_key": "example_3.pdf",
+    "copy_source": "bucketExample/example_3.pdf",
+    "origin": 2
+}

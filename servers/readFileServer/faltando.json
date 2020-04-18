@@ -1,0 +1,20 @@
+﻿{
+    "Key":"example_2.pdf",
+    "File":{
+       "file_key":"example_2.pdf",
+       "copy_source":"bucketExample/final/faturamentodigital/example_2/example_2.pdf",
+       "complete_path":"final/faturamentodigital/example_2/example_2.pdf",
+       "origin":1
+    },
+    "Count":1
+ },
+ {
+    "Key":"example.pdf",
+    "File":{
+       "file_key":"example.pdf",
+       "copy_source":"bucketExample/final/faturamentodigital/example/example.pdf",
+       "complete_path":"final/faturamentodigital/example/example.pdf",
+       "origin":1
+    },
+    "Count":1
+ }
